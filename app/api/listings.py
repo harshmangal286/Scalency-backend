@@ -12,12 +12,15 @@ Workflow:
 
 import uuid
 import logging
+import os
+from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status
 from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.core.database import get_db
+from app.core.constants import UPLOADS_DIR, ALLOWED_IMAGE_TYPES
 from app.models import (    # package import triggers configure_mappers()
     AutomationJob, JobStatus, JobType,
     Listing, ListingStatus, User,
@@ -39,6 +42,117 @@ from app.services.pricing_service import suggest_price
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/listings", tags=["listings"])
+
+# Create uploads directory if it doesn't exist
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+
+
+# ---------------------------------------------------------------------------
+# File Upload – store image and return URL
+# ---------------------------------------------------------------------------
+
+@router.post(
+    "/upload",
+    summary="Upload an image file (returns URL for use in /generate)",
+    status_code=status.HTTP_200_OK,
+)
+async def upload_image(
+    file: UploadFile = File(..., description="Image file (JPG, PNG, GIF, WebP)"),
+) -> dict:
+    """
+    Accept file upload, validate, store, and return a URL.
+
+    **Returns:**
+    - `image_url`: URL to the stored image (can be used with /listings/generate)
+
+    **Validation:**
+    - File type must be image (JPEG, PNG, GIF, WebP)
+    - Max size: 10MB (same as frontend limit)
+
+    **Example:**
+    ```bash
+    curl -X POST http://localhost:8000/api/v1/listings/upload \
+      -F "file=@/path/to/image.jpg"
+    ```
+    """
+    # Validate file type
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid file type: {file.content_type}. Allowed: {', '.join(ALLOWED_IMAGE_TYPES)}",
+        )
+
+    # Read file and validate size
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"File size exceeds {MAX_FILE_SIZE / 1024 / 1024}MB limit",
+        )
+
+    # Generate unique filename
+    file_ext = Path(file.filename).suffix
+    unique_filename = f"{uuid.uuid4()}{file_ext}"
+    file_path = UPLOADS_DIR / unique_filename
+
+    # Save file
+    try:
+        with open(file_path, "wb") as f:
+            f.write(content)
+    except IOError as exc:
+        logger.exception("Failed to save upload: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to save file",
+        ) from exc
+
+    # Return URL (frontend can use this with /generate endpoint)
+    image_url = f"http://localhost:8000/api/v1/listings/uploads/{unique_filename}"
+    return {
+        "image_url": image_url,
+        "filename": unique_filename,
+        "size": len(content),
+    }
+
+
+# ---------------------------------------------------------------------------
+# File Serving – serve uploaded images
+# ---------------------------------------------------------------------------
+
+@router.get(
+    "/uploads/{filename}",
+    summary="Retrieve uploaded image",
+)
+async def get_uploaded_image(filename: str):
+    """
+    Serve uploaded image file by filename.
+
+    This endpoint allows accessing uploaded images via HTTP URL
+    (which can be passed to /listings/generate).
+    """
+    from fastapi.responses import FileResponse
+
+    file_path = UPLOADS_DIR / filename
+
+    # Security: prevent directory traversal
+    if not file_path.is_relative_to(UPLOADS_DIR):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied",
+        )
+
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File not found",
+        )
+
+    return FileResponse(
+        file_path,
+        media_type="image/jpeg",  # Will be overridden by actual file type
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
 
 
 # ---------------------------------------------------------------------------

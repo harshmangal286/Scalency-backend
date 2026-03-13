@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
     OPENROUTER_MODEL: str = "openai/gpt-4o-mini"  # cost-effective default
 
+    # Claude API (fallback if OpenRouter unavailable)
+    CLAUDE_API_KEY: str = ""
+    ANTHROPIC_BASE_URL: str = "https://api.anthropic.com/v1"
+    CLAUDE_MODEL: str = "claude-3-5-sonnet-20241022"  # latest Claude model
+
     # Security
     SECRET_KEY: str = "change-me-in-production"
 
