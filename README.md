@@ -44,7 +44,7 @@ Scalency is a high-performance, AI-assisted resale marketplace engine. It levera
 ```bash
 git clone <repo-url> && cd scalency-backend
 cp .env.example .env
-# Open .env and add your OPENROUTER_API_KEY
+# Open .env and add your OPENROUTER_API_KEY or CLAUDE_API_KEY
 
 ```
 
@@ -125,3 +125,4 @@ For deeper troubleshooting, refer to the **[Troubleshooting Section in COMMANDS.
 **Built with ❤️ for the Scalency ecosystem.**
 
 Would you like me to help you generate the content for the **API_GUIDE.md** or **COMMANDS.md** files mentioned here?
+
