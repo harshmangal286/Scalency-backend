@@ -20,7 +20,7 @@ class Settings(BaseSettings):
 
     # Claude API (fallback if OpenRouter unavailable)
     CLAUDE_API_KEY: str = ""
-    ANTHROPIC_BASE_URL: str = "https://api.anthropic.com/v1"
+    ANTHROPIC_BASE_URL: str = "https://api.anthropic.com/v1"  # Custom endpoint support
     CLAUDE_MODEL: str = "claude-3-5-sonnet-20241022"  # latest Claude model
 
     # Security
