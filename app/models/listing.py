@@ -7,10 +7,10 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String, Text
-from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
+from app.core.types import UUID, ARRAY
 
 
 class ListingStatus:
@@ -76,7 +76,7 @@ class Listing(Base):
 
     # Relationships
     user = relationship("User", back_populates="listings")
-    jobs = relationship("AutomationJob", back_populates="listing", lazy="dynamic")
+    jobs = relationship("AutomationJob", back_populates="listing", lazy="dynamic", cascade="all, delete")
 
     def __repr__(self) -> str:
         return f"<Listing id={self.id} title={self.title!r} status={self.status}>"

@@ -87,6 +87,8 @@ async def generate_and_save_draft(
     image_url: str,
     user_id: uuid_module.UUID,
     db: Session,
+    stock: int = 1,
+    additional_image_urls: list = None,
 ) -> AIGeneratedListing:
     """
     Main entry point for the /generate endpoint.
@@ -98,14 +100,18 @@ async def generate_and_save_draft(
     5. Return AIGeneratedListing (includes listing_id).
 
     Args:
-        image_url: Publicly accessible product image URL.
+        image_url: Publicly accessible product image URL (used for AI analysis).
         user_id:   UUID of the authenticated user who owns the listing.
         db:        SQLAlchemy session (injected by FastAPI's Depends).
+        stock:     Initial quantity in stock (defaults to 1).
+        additional_image_urls: List of additional product image URLs (optional).
 
     Raises:
         ValueError: On missing API keys or unparseable AI response.
         httpx.HTTPStatusError: On non-2xx responses from all AI services.
     """
+    if additional_image_urls is None:
+        additional_image_urls = []
     # Try OpenRouter first
     if settings.OPENROUTER_API_KEY:
         try:
@@ -149,7 +155,8 @@ async def generate_and_save_draft(
         color=generated["color"],
         condition=generated["condition_estimate"],  # map AI field → DB field
         hashtags=generated["hashtags"],
-        image_urls=[image_url],
+        image_urls=[image_url] + (additional_image_urls if additional_image_urls else []),
+        stock=stock,
         status=ListingStatus.DRAFT,
     )
     db.add(draft)
@@ -173,7 +180,8 @@ async def generate_and_save_draft(
         style=generated["style"],
         color=generated["color"],
         condition_estimate=generated["condition_estimate"],
-        image_urls=[image_url],
+        image_urls=[image_url] + (additional_image_urls if additional_image_urls else []),
+        stock=stock,
         price_suggestion=price_suggestion,
     )
 

@@ -8,9 +8,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     # Database
-    DATABASE_URL: str = "postgresql://postgres:postgres@postgres:5432/scalency"
+    DATABASE_URL: str = "sqlite:///./scalency.db"
 
-    # Redis / Celery
+    # Redis / Celery (optional for local dev)
     REDIS_URL: str = "redis://redis:6379"
 
     # AI

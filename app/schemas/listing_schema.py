@@ -35,9 +35,14 @@ class ListingGenerateRequest(BaseModel):
     Input to the AI generation endpoint.
     A user_id is required so the backend can immediately persist a draft listing,
     allowing the frontend to jump straight to publish without a separate create call.
+
+    Optional stock field allows setting initial quantity (defaults to 1).
+    Optional additional_image_urls for supporting multiple product images.
     """
-    image_url: str = Field(..., description="Publicly accessible URL of the product image")
+    image_url: str = Field(..., description="Publicly accessible URL of the primary product image (used for AI analysis)")
     user_id: uuid.UUID = Field(..., description="Owner of the draft listing to be created")
+    stock: int = Field(1, ge=1, description="Initial quantity in stock (defaults to 1)")
+    additional_image_urls: list[str] = Field(default_factory=list, description="Additional product image URLs (optional)")
 
 
 class AIGeneratedListing(BaseModel):
@@ -60,6 +65,7 @@ class AIGeneratedListing(BaseModel):
     color: Optional[str] = None
     condition_estimate: Optional[str] = None
     image_urls: list[str] = Field(default_factory=list)
+    stock: int = Field(1, ge=1)  # Initial stock quantity
     # Auto-computed from brand + category + condition_estimate
     price_suggestion: Optional[PriceSuggestionResponse] = None
 
@@ -117,6 +123,11 @@ class ListingUpdateRequest(BaseModel):
 class ListingStockUpdateRequest(BaseModel):
     """Payload for the PATCH /{id}/stock endpoint."""
     quantity_sold: int = Field(..., ge=1, description="Number of units sold")
+
+
+class ListingRepostRequest(BaseModel):
+    """Payload for POST /{id}/repost endpoint."""
+    stock: int = Field(1, ge=1, description="Stock quantity for the reposted listing")
 
 
 # ---------------------------------------------------------------------------

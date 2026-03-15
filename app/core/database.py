@@ -8,13 +8,33 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from app.core.config import settings
 
-# Connection pool tuned for a containerised environment
-engine = create_engine(
-    settings.DATABASE_URL,
-    pool_pre_ping=True,       # detect stale connections automatically
-    pool_size=10,
-    max_overflow=20,
-)
+"""
+SQLAlchemy engine, session factory, and declarative base.
+Import `SessionLocal` for dependency injection and `Base` for model definitions.
+"""
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from app.core.config import settings
+
+# Connection pool tuned for the database type
+if "sqlite" in settings.DATABASE_URL.lower():
+    # SQLite doesn't need connection pooling
+    engine = create_engine(
+        settings.DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+else:
+    # PostgreSQL with connection pooling
+    engine = create_engine(
+        settings.DATABASE_URL,
+        pool_pre_ping=True,       # detect stale connections automatically
+        pool_size=10,
+        max_overflow=20,
+    )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

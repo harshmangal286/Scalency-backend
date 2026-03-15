@@ -30,6 +30,7 @@ from app.schemas.listing_schema import (
     ListingCreateRequest,
     ListingGenerateRequest,
     ListingListResponse,
+    ListingRepostRequest,
     ListingResponse,
     ListingStockUpdateRequest,
     ListingUpdateRequest,
@@ -194,6 +195,8 @@ async def generate_listing(
             image_url=body.image_url,
             user_id=body.user_id,
             db=db,
+            stock=body.stock,
+            additional_image_urls=body.additional_image_urls,
         )
     except ValueError as exc:
         raise HTTPException(
@@ -419,10 +422,12 @@ def publish_listing(
 )
 def repost_listing(
     listing_id: uuid.UUID,
+    body: ListingRepostRequest,
     db: Session = Depends(get_db),
 ) -> QueuedJobResponse:
     """
     Enqueues a Celery task that clones the listing and republishes the clone.
+    Allows specifying stock quantity for the reposted listing.
     Returns a job_id you can poll via GET /api/v1/jobs/{job_id}.
     """
     listing = _get_listing_or_404(db, listing_id)
@@ -438,7 +443,7 @@ def repost_listing(
 
     from app.tasks.repost_task import repost_listing_task
 
-    repost_listing_task.delay(str(listing.id), str(job.id))
+    repost_listing_task.delay(str(listing.id), str(job.id), body.stock)
     return QueuedJobResponse(job_id=job.id)
 
 
@@ -493,6 +498,31 @@ def update_stock(
         repost_listing_task.delay(str(listing.id), str(repost_job.id))
 
     return listing
+
+
+# ---------------------------------------------------------------------------
+# Delete Listing
+# ---------------------------------------------------------------------------
+
+@router.delete(
+    "/{listing_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a listing",
+)
+def delete_listing(
+    listing_id: uuid.UUID,
+    db: Session = Depends(get_db),
+) -> None:
+    """
+    Deletes a listing and all associated data.
+    Can delete listings in any status (draft, published, sold, etc).
+    """
+    listing = _get_listing_or_404(db, listing_id)
+
+    db.delete(listing)
+    db.commit()
+
+    logger.info("Listing %s deleted successfully.", listing_id)
 
 
 # ---------------------------------------------------------------------------

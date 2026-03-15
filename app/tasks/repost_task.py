@@ -24,13 +24,14 @@ logger = logging.getLogger(__name__)
 
 
 @celery_app.task(bind=True, max_retries=3, default_retry_delay=30)
-def repost_listing_task(self, listing_id: str, job_id: str) -> dict:
+def repost_listing_task(self, listing_id: str, job_id: str, stock: int = None) -> dict:
     """
     Celery task that clones a listing and republishes it.
 
     Args:
         listing_id: UUID string of the source listing to clone.
         job_id:     UUID string of the AutomationJob tracking this repost.
+        stock:      Optional stock quantity for the reposted listing (defaults to source stock).
 
     Returns:
         Dict with the outcome and the new listing id.
@@ -70,7 +71,7 @@ def repost_listing_task(self, listing_id: str, job_id: str) -> dict:
             hashtags=list(source.hashtags) if source.hashtags else [],
             image_urls=list(source.image_urls) if source.image_urls else [],
             price=source.price,
-            stock=source.stock,
+            stock=stock if stock is not None else source.stock,
             status=ListingStatus.DRAFT,
             parent_listing_id=source.id,
         )

@@ -57,6 +57,13 @@ def create_app() -> FastAPI:
     app.include_router(pricing.router)
     app.include_router(jobs.router)
 
+    @app.on_event("startup")
+    def startup():
+        logger.info("Creating database tables...")
+        from app.core.database import create_tables
+        create_tables()
+        logger.info("Database tables ready.")
+
     return app
 
 
